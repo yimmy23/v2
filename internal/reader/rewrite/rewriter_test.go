@@ -256,7 +256,7 @@ func TestRewriteWithNoLazyImage(t *testing.T) {
 func TestRewriteWithLazyImage(t *testing.T) {
 	controlEntry := &model.Entry{
 		Title:   `A title`,
-		Content: `<img src="https://example.org/image.jpg" data-url="https://example.org/image.jpg" alt="Image"/><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
+		Content: `<img src="https://example.org/image.jpg" data-url="https://example.org/image.jpg" alt="Image"/><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"/></noscript>`,
 	}
 	testEntry := &model.Entry{
 		Title:   `A title`,
@@ -272,7 +272,7 @@ func TestRewriteWithLazyImage(t *testing.T) {
 func TestRewriteWithLazyDivImage(t *testing.T) {
 	controlEntry := &model.Entry{
 		Title:   `A title`,
-		Content: `<img src="https://example.org/image.jpg" alt="Image"/><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"></noscript>`,
+		Content: `<img src="https://example.org/image.jpg" alt="Image"/><noscript><img src="https://example.org/fallback.jpg" alt="Fallback"/></noscript>`,
 	}
 	testEntry := &model.Entry{
 		Title:   `A title`,
@@ -327,6 +327,54 @@ func TestRewriteWithImageAndLazySrcset(t *testing.T) {
 		Content: `<img src="meow" srcset="" data-srcset="https://example.org/image.jpg" alt="Image">`,
 	}
 	Rewriter("https://example.org/article", testEntry, "add_dynamic_image")
+
+	if !reflect.DeepEqual(testEntry, controlEntry) {
+		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
+	}
+}
+
+func TestRewriteWithNoLazyIframe(t *testing.T) {
+	controlEntry := &model.Entry{
+		Title:   `A title`,
+		Content: `<iframe src="https://example.org/embed" allowfullscreen></iframe>`,
+	}
+	testEntry := &model.Entry{
+		Title:   `A title`,
+		Content: `<iframe src="https://example.org/embed" allowfullscreen></iframe>`,
+	}
+	Rewriter("https://example.org/article", testEntry, "add_dynamic_iframe")
+
+	if !reflect.DeepEqual(testEntry, controlEntry) {
+		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
+	}
+}
+
+func TestRewriteWithLazyIframe(t *testing.T) {
+	controlEntry := &model.Entry{
+		Title:   `A title`,
+		Content: `<iframe data-src="https://example.org/embed" allowfullscreen="" src="https://example.org/embed"></iframe>`,
+	}
+	testEntry := &model.Entry{
+		Title:   `A title`,
+		Content: `<iframe data-src="https://example.org/embed" allowfullscreen></iframe>`,
+	}
+	Rewriter("https://example.org/article", testEntry, "add_dynamic_iframe")
+
+	if !reflect.DeepEqual(testEntry, controlEntry) {
+		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
+	}
+}
+
+func TestRewriteWithLazyIframeAndSrc(t *testing.T) {
+	controlEntry := &model.Entry{
+		Title:   `A title`,
+		Content: `<iframe src="https://example.org/embed" data-src="https://example.org/embed" allowfullscreen=""></iframe>`,
+	}
+	testEntry := &model.Entry{
+		Title:   `A title`,
+		Content: `<iframe src="about:blank" data-src="https://example.org/embed" allowfullscreen></iframe>`,
+	}
+	Rewriter("https://example.org/article", testEntry, "add_dynamic_iframe")
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
@@ -618,6 +666,38 @@ func TestAddHackerNewsLinksUsingOpener(t *testing.T) {
 		<p># Comments: 38</p>`,
 	}
 	Rewriter("https://example.org/article", testEntry, `add_hn_links_using_opener`)
+
+	if !reflect.DeepEqual(testEntry, controlEntry) {
+		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
+	}
+}
+
+func TestAddImageTitle(t *testing.T) {
+	testEntry := &model.Entry{
+		Title: `A title`,
+		Content: `
+		<img src="pif" title="pouf">
+		<img src="pif" title="pouf" alt='"onerror=alert(1) a="'>
+		<img src="pif" title="pouf" alt='&quot;onerror=alert(1) a=&quot'>
+		<img src="pif" title="pouf" alt=';&amp;quot;onerror=alert(1) a=;&amp;quot;'>
+		<img src="pif" alt="pouf" title='"onerror=alert(1) a="'>
+		<img src="pif" alt="pouf" title='&quot;onerror=alert(1) a=&quot'>
+		<img src="pif" alt="pouf" title=';&amp;quot;onerror=alert(1) a=;&amp;quot;'>
+		`,
+	}
+
+	controlEntry := &model.Entry{
+		Title: `A title`,
+		Content: `<figure><img src="pif" alt=""/><figcaption><p>pouf</p></figcaption></figure>
+		<figure><img src="pif" alt="" onerror="alert(1)" a=""/><figcaption><p>pouf</p></figcaption></figure>
+		<figure><img src="pif" alt="" onerror="alert(1)" a=""/><figcaption><p>pouf</p></figcaption></figure>
+		<figure><img src="pif" alt=";&#34;onerror=alert(1) a=;&#34;"/><figcaption><p>pouf</p></figcaption></figure>
+		<figure><img src="pif" alt="pouf"/><figcaption><p>&#34;onerror=alert(1) a=&#34;</p></figcaption></figure>
+		<figure><img src="pif" alt="pouf"/><figcaption><p>&#34;onerror=alert(1) a=&#34;</p></figcaption></figure>
+		<figure><img src="pif" alt="pouf"/><figcaption><p>;&amp;quot;onerror=alert(1) a=;&amp;quot;</p></figcaption></figure>
+		`,
+	}
+	Rewriter("https://example.org/article", testEntry, `add_image_title`)
 
 	if !reflect.DeepEqual(testEntry, controlEntry) {
 		t.Errorf(`Not expected output: got "%+v" instead of "%+v"`, testEntry, controlEntry)
