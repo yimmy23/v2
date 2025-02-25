@@ -15,6 +15,7 @@ type FeedForm struct {
 	FeedURL                     string
 	SiteURL                     string
 	Title                       string
+	Description                 string
 	ScraperRules                string
 	RewriteRules                string
 	BlocklistRules              string
@@ -34,6 +35,13 @@ type FeedForm struct {
 	HideGlobally                bool
 	CategoryHidden              bool // Category has "hide_globally"
 	AppriseServiceURLs          string
+	WebhookURL                  string
+	DisableHTTP2                bool
+	NtfyEnabled                 bool
+	NtfyPriority                int
+	NtfyTopic                   string
+	PushoverEnabled             bool
+	PushoverPriority            int
 }
 
 // Merge updates the fields of the given feed.
@@ -42,6 +50,7 @@ func (f FeedForm) Merge(feed *model.Feed) *model.Feed {
 	feed.Title = f.Title
 	feed.SiteURL = f.SiteURL
 	feed.FeedURL = f.FeedURL
+	feed.Description = f.Description
 	feed.ScraperRules = f.ScraperRules
 	feed.RewriteRules = f.RewriteRules
 	feed.BlocklistRules = f.BlocklistRules
@@ -61,6 +70,13 @@ func (f FeedForm) Merge(feed *model.Feed) *model.Feed {
 	feed.NoMediaPlayer = f.NoMediaPlayer
 	feed.HideGlobally = f.HideGlobally
 	feed.AppriseServiceURLs = f.AppriseServiceURLs
+	feed.WebhookURL = f.WebhookURL
+	feed.DisableHTTP2 = f.DisableHTTP2
+	feed.NtfyEnabled = f.NtfyEnabled
+	feed.NtfyPriority = f.NtfyPriority
+	feed.NtfyTopic = f.NtfyTopic
+	feed.PushoverEnabled = f.PushoverEnabled
+	feed.PushoverPriority = f.PushoverPriority
 	return feed
 }
 
@@ -70,10 +86,21 @@ func NewFeedForm(r *http.Request) *FeedForm {
 	if err != nil {
 		categoryID = 0
 	}
+	ntfyPriority, err := strconv.Atoi(r.FormValue("ntfy_priority"))
+	if err != nil {
+		ntfyPriority = 0
+	}
+
+	pushoverPriority, err := strconv.Atoi(r.FormValue("pushover_priority"))
+	if err != nil {
+		pushoverPriority = 0
+	}
+
 	return &FeedForm{
 		FeedURL:                     r.FormValue("feed_url"),
 		SiteURL:                     r.FormValue("site_url"),
 		Title:                       r.FormValue("title"),
+		Description:                 r.FormValue("description"),
 		ScraperRules:                r.FormValue("scraper_rules"),
 		UserAgent:                   r.FormValue("user_agent"),
 		Cookie:                      r.FormValue("cookie"),
@@ -92,5 +119,12 @@ func NewFeedForm(r *http.Request) *FeedForm {
 		NoMediaPlayer:               r.FormValue("no_media_player") == "1",
 		HideGlobally:                r.FormValue("hide_globally") == "1",
 		AppriseServiceURLs:          r.FormValue("apprise_service_urls"),
+		WebhookURL:                  r.FormValue("webhook_url"),
+		DisableHTTP2:                r.FormValue("disable_http2") == "1",
+		NtfyEnabled:                 r.FormValue("ntfy_enabled") == "1",
+		NtfyPriority:                ntfyPriority,
+		NtfyTopic:                   r.FormValue("ntfy_topic"),
+		PushoverEnabled:             r.FormValue("pushover_enabled") == "1",
+		PushoverPriority:            pushoverPriority,
 	}
 }

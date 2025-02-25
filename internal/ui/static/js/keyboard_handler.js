@@ -2,26 +2,29 @@ class KeyboardHandler {
     constructor() {
         this.queue = [];
         this.shortcuts = {};
-        this.triggers = [];
+        this.triggers = new Set();
     }
 
     on(combination, callback) {
         this.shortcuts[combination] = callback;
-        this.triggers.push(combination.split(" ")[0]);
+        this.triggers.add(combination.split(" ")[0]);
     }
 
     listen() {
         document.onkeydown = (event) => {
-            let key = this.getKey(event);
-            if (this.isEventIgnored(event, key) || this.isModifierKeyDown(event)) {
+            const key = KeyboardHandler.getKey(event);
+            if (this.isEventIgnored(event, key) || KeyboardHandler.isModifierKeyDown(event)) {
                 return;
             }
 
-            event.preventDefault();
+            if (key !== "Enter") {
+                event.preventDefault();
+            }
+
             this.queue.push(key);
 
-            for (let combination in this.shortcuts) {
-                let keys = combination.split(" ");
+            for (const combination in this.shortcuts) {
+                const keys = combination.split(" ");
 
                 if (keys.every((value, index) => value === this.queue[index])) {
                     this.queue = [];
@@ -45,28 +48,21 @@ class KeyboardHandler {
     isEventIgnored(event, key) {
         return event.target.tagName === "INPUT" ||
             event.target.tagName === "TEXTAREA" ||
-            (this.queue.length < 1 && !this.triggers.includes(key));
+            (this.queue.length < 1 && !this.triggers.has(key));
     }
 
-    isModifierKeyDown(event) {
+    static isModifierKeyDown(event) {
         return event.getModifierState("Control") || event.getModifierState("Alt") || event.getModifierState("Meta");
     }
 
-    getKey(event) {
-        const mapping = {
-            'Esc': 'Escape',
-            'Up': 'ArrowUp',
-            'Down': 'ArrowDown',
-            'Left': 'ArrowLeft',
-            'Right': 'ArrowRight'
-        };
-
-        for (let key in mapping) {
-            if (mapping.hasOwnProperty(key) && key === event.key) {
-                return mapping[key];
-            }
+    static getKey(event) {
+        switch (event.key) {
+        case 'Esc': return 'Escape';
+        case 'Up': return 'ArrowUp';
+        case 'Down': return 'ArrowDown';
+        case 'Left': return 'ArrowLeft';
+        case 'Right': return 'ArrowRight';
+        default: return event.key;
         }
-
-        return event.key;
     }
 }

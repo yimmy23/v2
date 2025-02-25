@@ -6,6 +6,9 @@ package timezone // import "miniflux.app/v2/internal/timezone"
 import (
 	"testing"
 	"time"
+
+	// Make sure these tests pass when the timezone database is not installed on the host system.
+	_ "time/tzdata"
 )
 
 func TestNow(t *testing.T) {
@@ -70,5 +73,19 @@ func TestConvertTimeWithIdenticalTimezone(t *testing.T) {
 	hours, minutes, secs := output.Clock()
 	if hours != 14 || minutes != 2 || secs != 3 {
 		t.Fatalf(`Unexpected time, got hours=%d, minutes=%d, secs=%d`, hours, minutes, secs)
+	}
+}
+
+func TestConvertPostgresDateTimeWithNegativeTimezoneOffset(t *testing.T) {
+	tz := "US/Eastern"
+	input := time.Date(0, 1, 1, 0, 0, 0, 0, time.FixedZone("", -5))
+	output := Convert(tz, input)
+
+	if output.Location().String() != tz {
+		t.Fatalf(`Unexpected timezone, got %q instead of %s`, output.Location(), tz)
+	}
+
+	if year := output.Year(); year != 0 {
+		t.Fatalf(`Unexpected year, got %d instead of 0`, year)
 	}
 }

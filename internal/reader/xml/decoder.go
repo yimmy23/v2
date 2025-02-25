@@ -13,18 +13,19 @@ import (
 	"miniflux.app/v2/internal/reader/encoding"
 )
 
-// NewDecoder returns a XML decoder that filters illegal characters.
-func NewDecoder(data io.Reader) *xml.Decoder {
+// NewXMLDecoder returns a XML decoder that filters illegal characters.
+func NewXMLDecoder(data io.ReadSeeker) *xml.Decoder {
 	var decoder *xml.Decoder
 	buffer, _ := io.ReadAll(data)
-	enc := procInst("encoding", string(buffer))
-	if enc != "" && enc != "utf-8" && enc != "UTF-8" && !strings.EqualFold(enc, "utf-8") {
-		// filter invalid chars later within decoder.CharsetReader
-		decoder = xml.NewDecoder(bytes.NewReader(buffer))
-	} else {
+	enc := getEncoding(buffer)
+	if enc == "" || strings.EqualFold(enc, "utf-8") {
 		// filter invalid chars now, since decoder.CharsetReader not called for utf-8 content
 		filteredBytes := bytes.Map(filterValidXMLChar, buffer)
 		decoder = xml.NewDecoder(bytes.NewReader(filteredBytes))
+	} else {
+		// filter invalid chars later within decoder.CharsetReader
+		data.Seek(0, io.SeekStart)
+		decoder = xml.NewDecoder(data)
 	}
 
 	decoder.Entity = xml.HTMLEntity
@@ -36,7 +37,7 @@ func NewDecoder(data io.Reader) *xml.Decoder {
 		}
 		rawData, err := io.ReadAll(utf8Reader)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to read data: %q", err)
+			return nil, fmt.Errorf("encoding: unable to read data: %w", err)
 		}
 		filteredBytes := bytes.Map(filterValidXMLChar, rawData)
 		return bytes.NewReader(filteredBytes), nil
@@ -59,27 +60,24 @@ func filterValidXMLChar(r rune) rune {
 	return -1
 }
 
-// This function is copied from encoding/xml package,
-// procInst parses the `param="..."` or `param='...'`
-// value out of the provided string, returning "" if not found.
-func procInst(param, s string) string {
+// This function is copied from encoding/xml's procInst and adapted for []bytes instead of string
+func getEncoding(b []byte) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
-	param = param + "="
-	idx := strings.Index(s, param)
+	idx := bytes.Index(b, []byte("encoding="))
 	if idx == -1 {
 		return ""
 	}
-	v := s[idx+len(param):]
-	if v == "" {
+	v := b[idx+len("encoding="):]
+	if len(v) == 0 {
 		return ""
 	}
 	if v[0] != '\'' && v[0] != '"' {
 		return ""
 	}
-	idx = strings.IndexRune(v[1:], rune(v[0]))
+	idx = bytes.IndexRune(v[1:], rune(v[0]))
 	if idx == -1 {
 		return ""
 	}
-	return v[1 : idx+1]
+	return string(v[1 : idx+1])
 }

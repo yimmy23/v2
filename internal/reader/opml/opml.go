@@ -27,18 +27,36 @@ type opmlHeader struct {
 }
 
 type opmlOutline struct {
-	Title    string                `xml:"title,attr,omitempty"`
-	Text     string                `xml:"text,attr"`
-	FeedURL  string                `xml:"xmlUrl,attr,omitempty"`
-	SiteURL  string                `xml:"htmlUrl,attr,omitempty"`
-	Outlines opmlOutlineCollection `xml:"outline,omitempty"`
+	Title       string                `xml:"title,attr,omitempty"`
+	Text        string                `xml:"text,attr"`
+	FeedURL     string                `xml:"xmlUrl,attr,omitempty"`
+	SiteURL     string                `xml:"htmlUrl,attr,omitempty"`
+	Description string                `xml:"description,attr,omitempty"`
+	Outlines    opmlOutlineCollection `xml:"outline,omitempty"`
 }
 
-func (o *opmlOutline) IsSubscription() bool {
+func (o opmlOutline) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	type opmlOutlineXml opmlOutline
+
+	outlineType := ""
+	if o.IsSubscription() {
+		outlineType = "rss"
+	}
+
+	return e.EncodeElement(struct {
+		opmlOutlineXml
+		Type string `xml:"type,attr,omitempty"`
+	}{
+		opmlOutlineXml: opmlOutlineXml(o),
+		Type:           outlineType,
+	}, start)
+}
+
+func (o opmlOutline) IsSubscription() bool {
 	return strings.TrimSpace(o.FeedURL) != ""
 }
 
-func (o *opmlOutline) GetTitle() string {
+func (o opmlOutline) GetTitle() string {
 	if o.Title != "" {
 		return o.Title
 	}
@@ -58,7 +76,7 @@ func (o *opmlOutline) GetTitle() string {
 	return ""
 }
 
-func (o *opmlOutline) GetSiteURL() string {
+func (o opmlOutline) GetSiteURL() string {
 	if o.SiteURL != "" {
 		return o.SiteURL
 	}
